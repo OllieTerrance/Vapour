@@ -3,8 +3,41 @@ function sortAlpha(a, b) {
     var bb = b.name.toLowerCase().replace(/[^a-z0-9]/g, "");
     return aa > bb ? 1 : (aa < bb ? -1 : 0);
 }
+var ajaxReqs = 0;
+var ajaxQueue = [];
+var ajaxActive = 0;
+var ajaxMaxConc = 3;
+function addAjax(obj) {
+    ajaxReqs++;
+    $("#nav-loading").toggle(ajaxReqs > 0).find("span").text(ajaxReqs);
+    var oldSuccess = obj.success;
+    var oldError = obj.error;
+    var callback = function() {
+        ajaxReqs--;
+        if (ajaxActive === ajaxMaxConc) {
+            $.ajax(ajaxQueue.shift());
+        } else {
+            ajaxActive--;
+        }
+        $("#nav-loading").toggle(ajaxReqs > 0).find("span").text(ajaxReqs);
+    }
+    obj.success = function(resp, xhr, status) {
+        callback();
+        if (oldSuccess) oldSuccess(resp, xhr, status);
+    };
+    obj.error = function(xhr, status, error) {
+        callback();
+        if (oldError) oldError(xhr, status, error);
+    };
+    if (ajaxActive === ajaxMaxConc) {
+        ajaxQueue.push(obj);
+    } else {
+        ajaxActive++;
+        $.ajax(obj);
+    }
+}
 function getFriends(fn) {
-    $.ajax({
+    addAjax({
         "url": "https://steamcommunity.com/my/friends",
         "success": function(resp, xhr, status) {
             var friends = [];
@@ -21,7 +54,7 @@ function getFriends(fn) {
     });
 }
 function getGames(fn, user) {
-    $.ajax({
+    addAjax({
         "url": "https://steamcommunity.com/" + (user ? "profiles/" + user : "my") + "/games?tab=all",
         "success": function(resp, xhr, status) {
             var games = []
@@ -38,7 +71,7 @@ function getGames(fn, user) {
     });
 }
 function getStats(fn, game, user) {
-    $.ajax({
+    addAjax({
         "url": "https://steamcommunity.com/" + (user ? "profiles/" + user : "my") + "/stats/" + game + "/?tab=achievements",
         "success": function(resp, xhr, status) {
             var stats = [];
@@ -92,7 +125,6 @@ $(document).ready(function() {
                 });
                 $gameElmt.append($statsList);
             }, game.id);
-            return false;
         });
         $("#page-profile").empty().append($list);
     });

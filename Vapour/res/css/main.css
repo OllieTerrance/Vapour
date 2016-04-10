@@ -5,6 +5,6 @@ body {
 #pages {
     margin-top: 60px;
 }
-#pages > div {
+#nav-loading, #pages > div {
     display: none;
 }
