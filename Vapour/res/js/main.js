@@ -14,7 +14,7 @@ function addAjax(obj) {
     var oldError = obj.error;
     var callback = function() {
         ajaxReqs--;
-        if (ajaxActive === ajaxMaxConc) {
+        if (ajaxActive === ajaxMaxConc && ajaxQueue.length) {
             $.ajax(ajaxQueue.shift());
         } else {
             ajaxActive--;
@@ -81,77 +81,92 @@ function getAchieves(fn, game, user) {
         "url": "https://steamcommunity.com/" + (user ? "profiles/" + user : "my") + "/stats/" + game + "/?tab=achievements",
         "success": function(resp, xhr, status) {
             var achieves = [];
-            $(".achieveRow", resp).each(function(i, achieve) {
-                if ($(achieve).find(".achieveHiddenBox").length) {
-                    for (var i = 0; i < parseInt($(achieve).find(".achieveHiddenBox").text()); i++) achieves.push({});
-                } else {
-                    var achieveObj = {
-                        "name": $(achieve).find("h3").text(),
-                        "image": $(achieve).find("img").attr("src"),
-                        "desc": $(achieve).find("h5").text()
-                    };
-                    if ($(achieve).find(".achieveUnlockTime").length) {
-                        achieveObj.date = $(achieve).find(".achieveUnlockTime").text().trim().substring(9).split(" @ ");
-                    }
-                    if ($(achieve).find(".progressText").length) {
-                        var parts = $(achieve).find(".progressText").text().trim().split(/[^0-9]+/);
-                        achieveObj.progress = parts.map(Number);
-                    }
-                    achieves.push(achieveObj);
+            $(".achieveTxtHolder", resp).each(function(i, achieve) {
+                if ($(achieve).prev().hasClass("achieveHiddenBox")) {
+                    for (var i = 0; i < parseInt($(achieve).prev().text()); i++) achieves.push({});
+                    return;
                 }
+                var achieveObj = {
+                    "name": $(achieve).find("h3").text(),
+                    "image": $(achieve).prev().find("img").attr("src"),
+                    "desc": $(achieve).find("h5").text()
+                };
+                if ($(achieve).find(".achieveUnlockTime").length) {
+                    achieveObj.date = $(achieve).find(".achieveUnlockTime").text().trim().substring(9).split(" @ ");
+                }
+                if ($(achieve).find(".progressText").length) {
+                    var parts = $(achieve).find(".progressFloatRight").text().trim().split(/[^0-9]+/);
+                    achieveObj.progress = parts.map(Number);
+                }
+                achieves.push(achieveObj);
             });
             fn(achieves);
         }
     });
 }
 $(document).ready(function() {
-    $("#nav-profile").click(function(e) {
-        if ($(this).parent().hasClass("active")) return;
-        $("nav li.active").removeClass("active");
-        $(this).parent().addClass("active");
-        $("#pages > div").hide();
-        $("#page-profile").show();
-    }).click();
-    $("#nav-friends").click(function(e) {
-        if ($(this).parent().hasClass("active")) return;
-        $("nav li.active").removeClass("active");
-        $(this).parent().addClass("active");
-        $("#pages > div").hide();
-        $("#page-friends").show();
-    });
-    $("#page-profile").append($("<i>").addClass("fa fa-refresh fa-spin")).append(" Loading games...");
-    getGames(function(userGames) {
-        var $page = $("#page-profile").empty();
-        $(userGames.games).each(function(i, game) {
-            var $body = $("<div>").addClass("panel-body");
-            if (game.achievements) {
-                $body.text("Fetching achievements...");
-                getAchieves(function(achieves) {
-                    var $achievesList = $("<ul>").addClass("fa-ul");
-                    $(achieves).each(function(i, achieve) {
-                        var icon = achieve.date ? "check-square-o" : (achieve.progress ? "spinner" : "circle-o");
-                        $achievesList.append($("<li>").append($("<i>").addClass("fa fa-li fa-" + icon)).append(achieve.name || $("<em>").text("(secret)")));
-                    });
-                    $body.empty().append($achievesList);
-                }, game.id);
-            } else {
-                $body.text("Nothing to see here.");
-            }
-            var label = game.hours ? [game.hours < 0.5 ? "warning" : "success", game.hours + " hours"] : ["danger", "Unplayed"];
-            $page.append($("<div>").addClass("panel panel-dark")
-                .append($("<div>").addClass("panel-heading").text(game.name + " ")
-                    .append($("<span>").addClass("label label-" + label[0]).text(label[1])))
-                .append($body));
+    chrome.storage.local.get(function(store) {
+        $("#nav-profile").click(function(e) {
+            if ($(this).parent().hasClass("active")) return;
+            $("nav li.active").removeClass("active");
+            $(this).parent().addClass("active");
+            $("#pages > div").hide();
+            $("#page-profile").show();
+        }).click();
+        $("#nav-friends").click(function(e) {
+            if ($(this).parent().hasClass("active")) return;
+            $("nav li.active").removeClass("active");
+            $(this).parent().addClass("active");
+            $("#pages > div").hide();
+            $("#page-friends").show();
         });
-    });
-    $("#page-friends").append($("<i>").addClass("fa fa-refresh fa-spin")).append(" Loading friends...");
-    getFriends(function(friends) {
-        var $list = $("<div>").addClass("row");
-        $("#page-friends").empty().append($list);
-        $(friends).each(function(i, friend) {
-            $list.append($("<div>").addClass("col-md-3 col-sm-4 col-xs-6")
-                .append($("<div>").addClass("panel panel-dark")
-                    .append($("<div>").addClass("panel-body").text(friend.name))));
+        $("#page-profile").append($("<i>").addClass("fa fa-refresh fa-spin")).append(" Loading games...");
+        getGames(function(userGames) {
+            var $page = $("#page-profile").empty();
+            $(userGames.games).each(function(i, game) {
+                var $body = $("<div>").addClass("panel-body");
+                if (game.achievements) {
+                    var key = userGames.user + "/" + game.id;
+                    var callback = function(achieves) {
+                        chrome.storage.local.set({[key]: achieves});
+                        if (!achieves.length) {
+                            $body.text("Nothing to see here.");
+                            return;
+                        }
+                        var $achievesList = $("<ul>").addClass("fa-ul");
+                        $(achieves).each(function(i, achieve) {
+                            var icon = achieve.date ? "check-square-o" : (achieve.progress ? "spinner" : "circle-o");
+                            $achievesList.append($("<li>")
+                                .append($("<i>").addClass("fa fa-li fa-" + icon))
+                                .append(achieve.name || $("<em>").text("(secret)")));
+                        });
+                        $body.empty().append($achievesList);
+                    };
+                    if (store[key]) {
+                        callback(store[key]);
+                    } else {
+                        $body.text("Fetching achievements...");
+                        getAchieves(callback, game.id);
+                    }
+                } else {
+                    $body.text("Nothing to see here.");
+                }
+                var label = game.hours ? [game.hours < 0.5 ? "warning" : "success", game.hours + " hours"] : ["danger", "Unplayed"];
+                $page.append($("<div>").addClass("panel panel-dark")
+                    .append($("<div>").addClass("panel-heading").text(game.name + " ")
+                        .append($("<span>").addClass("label label-" + label[0]).text(label[1])))
+                    .append($body));
+            });
+        });
+        $("#page-friends").append($("<i>").addClass("fa fa-refresh fa-spin")).append(" Loading friends...");
+        getFriends(function(friends) {
+            var $list = $("<div>").addClass("row");
+            $("#page-friends").empty().append($list);
+            $(friends).each(function(i, friend) {
+                $list.append($("<div>").addClass("col-md-3 col-sm-4 col-xs-6")
+                    .append($("<div>").addClass("panel panel-dark")
+                        .append($("<div>").addClass("panel-body").text(friend.name))));
+            });
         });
     });
 });
