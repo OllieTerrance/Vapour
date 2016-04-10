@@ -62,6 +62,7 @@ function getGames(fn, user) {
             $(JSON.parse(resp.match(/var rgGames = (.+);/)[1])).each(function(i, game) {
                 games.push({
                     "id": game.appid,
+                    "urlId": game.friendlyURL,
                     "name": game.name,
                     "image": game.logo,
                     "hours": parseFloat(game.hours_forever) || 0.0,
@@ -146,7 +147,7 @@ $(document).ready(function() {
                         callback(store[key]);
                     } else {
                         $body.text("Fetching achievements...");
-                        getAchieves(callback, game.id);
+                        getAchieves(callback, game.urlId);
                     }
                 } else {
                     $body.text("Nothing to see here.");
