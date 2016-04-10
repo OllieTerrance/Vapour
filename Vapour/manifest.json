@@ -6,6 +6,7 @@
     "author": "Ollie Terrance",
     "options_page": "res/html/main.html",
     "permissions": [
+        "storage",
         "https://api.steampowered.com/",
         "https://steamcommunity.com/"
     ],
