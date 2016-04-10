@@ -1,13 +1,13 @@
 {
     "name": "Vapour for Steam",
     "short_name": "Vapour",
-    "description": "An analysis tool for Steam profiles.",
+    "description": "A tool to browse achievement progress on Steam.",
     "version": "0",
     "author": "Ollie Terrance",
+    "homepage_url": "https://github.com/OllieTerrance/Vapour",
     "options_page": "res/html/main.html",
     "permissions": [
         "storage",
-        "https://api.steampowered.com/",
         "https://steamcommunity.com/"
     ],
     "icons": {
