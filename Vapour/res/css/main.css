@@ -1,0 +1,10 @@
+body {
+    background-color: #333;
+    color: #ccc;
+}
+#pages {
+    margin-top: 60px;
+}
+#pages > div {
+    display: none;
+}
