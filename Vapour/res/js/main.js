@@ -66,6 +66,7 @@ function getGames(fn, user) {
                     "name": game.name,
                     "image": game.logo,
                     "hours": parseFloat(game.hours_forever) || 0.0,
+                    "lastPlay": game.last_played,
                     "achievements": game.availStatLinks.achievements
                 });
             });
@@ -124,6 +125,11 @@ $(document).ready(function() {
         });
         $("#page-profile").append($("<i>").addClass("fa fa-refresh fa-spin")).append(" Loading games...");
         getGames(function(userGames) {
+            var now = Math.floor(Date.now() / 1000);
+            chrome.storage.local.set({[userGames.user]: {
+                "time": now,
+                "games": userGames.games
+            }});
             var $page = $("#page-profile").empty();
             $(userGames.games).each(function(i, game) {
                 var label = game.hours ? [game.hours < 0.5 ? "warning" : "success", game.hours + " hours"] : ["danger", "Unplayed"];
@@ -152,21 +158,20 @@ $(document).ready(function() {
                                 .text(" " + achieve.progress.join("/") + " (" + Math.round((achieve.progress[0] / achieve.progress[1]) * 100) + "%)"));
                             (achieve.date ? $achievesYes : $achievesNo).append($achieve);
                         });
-                        $head
-                            .prepend($("<div>").addClass("progress pull-right").css("width", "200px")
-                                .append($("<div>").addClass("progress-bar progress-bar-success")
-                                    .css("width", ((counts[0] / achieves.length) * 100) + "%"))
-                                .append($("<div>").addClass("progress-bar progress-bar-warning")
-                                    .css("width", ((counts[1] / achieves.length) * 100) + "%"))
-                                .append($("<div>").addClass("progress-bar progress-bar-danger")
-                                    .css("width", ((counts[2] / achieves.length) * 100) + "%")));
+                        $head.prepend($("<div>").addClass("progress pull-right").css("width", "200px")
+                            .append($("<div>").addClass("progress-bar progress-bar-success")
+                                .css("width", ((counts[0] / achieves.length) * 100) + "%"))
+                            .append($("<div>").addClass("progress-bar progress-bar-warning")
+                                .css("width", ((counts[1] / achieves.length) * 100) + "%"))
+                            .append($("<div>").addClass("progress-bar progress-bar-danger")
+                                .css("width", ((counts[2] / achieves.length) * 100) + "%")));
                         $body.empty().append($("<div>").addClass("row")
                             .append($("<div>").addClass("col-sm-6")
                                 .append($achievesYes))
                             .append($("<div>").addClass("col-sm-6")
                                 .append($achievesNo)));
                     };
-                    if (store[key]) {
+                    if (store[key] && (!game.lastPlay || store[userGames.user].time > game.lastPlay)) {
                         callback(store[key]);
                     } else {
                         $body.text("Fetching achievements...");
