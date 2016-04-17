@@ -95,9 +95,10 @@ function getAchieves(fn, game, user) {
                 if ($(achieve).find(".achieveUnlockTime").length) {
                     achieveObj.date = $(achieve).find(".achieveUnlockTime").text().trim().substring(9).split(" @ ");
                 }
-                if ($(achieve).find(".progressText").length) {
-                    var parts = $(achieve).find(".progressFloatRight").text().trim().split(/[^0-9]+/);
-                    achieveObj.progress = parts.map(Number);
+                if ($(achieve).find(".progressText, .progressFloatRight").length) {
+                    var parts = $(achieve).find(".progressText, .progressFloatRight").text().trim().replace(/[\.,]/g, "").split(/[^0-9]+/);
+                    var prog = parts.map(Number);
+                    if (!(prog[0] === 0 && prog[1] === 1)) achieveObj.progress = prog;
                 }
                 achieves.push(achieveObj);
             });
@@ -125,6 +126,9 @@ $(document).ready(function() {
         getGames(function(userGames) {
             var $page = $("#page-profile").empty();
             $(userGames.games).each(function(i, game) {
+                var label = game.hours ? [game.hours < 0.5 ? "warning" : "success", game.hours + " hours"] : ["danger", "Unplayed"];
+                var $head = $("<div>").addClass("panel-heading").text(game.name + " ")
+                    .append($("<span>").addClass("label label-" + label[0]).text(label[1]));
                 var $body = $("<div>").addClass("panel-body");
                 if (game.achievements) {
                     var key = userGames.user + "/" + game.id;
@@ -134,14 +138,28 @@ $(document).ready(function() {
                             $body.text("Nothing to see here.");
                             return;
                         }
+                        var counts = [0, 0, 0];
                         var $achievesYes = $("<ul>").addClass("fa-ul");
                         var $achievesNo = $("<ul>").addClass("fa-ul");
                         $(achieves).each(function(i, achieve) {
-                            var icon = achieve.date ? "check-square-o" : (achieve.progress ? "spinner" : "circle-o");
-                            (achieve.date ? $achievesYes : $achievesNo).append($("<li>").toggleClass("text-muted", !achieve.name)
-                                .append($("<i>").addClass("fa fa-li fa-" + icon))
-                                .append(achieve.name || "[a secret achievement]"));
+                            var type = achieve.date ? 0 : (achieve.progress && achieve.progress[0] ? 1 : 2);
+                            counts[type]++;
+                            var icon = type === 0 ? "check-square-o" : "circle-o";
+                            var $achieve = $("<li>").toggleClass("text-muted", !achieve.name)
+                                .append($("<i>").addClass("fa fa-li fa-" + icon + " text-" + ["success", "warning", "danger"][type]))
+                                .append(achieve.name || "[a secret achievement]");
+                            if (achieve.progress) $achieve.append($("<span>").addClass("text-warning")
+                                .text(" " + achieve.progress.join("/") + " (" + Math.round((achieve.progress[0] / achieve.progress[1]) * 100) + "%)"));
+                            (achieve.date ? $achievesYes : $achievesNo).append($achieve);
                         });
+                        $head
+                            .prepend($("<div>").addClass("progress pull-right").css("width", "200px")
+                                .append($("<div>").addClass("progress-bar progress-bar-success")
+                                    .css("width", ((counts[0] / achieves.length) * 100) + "%"))
+                                .append($("<div>").addClass("progress-bar progress-bar-warning")
+                                    .css("width", ((counts[1] / achieves.length) * 100) + "%"))
+                                .append($("<div>").addClass("progress-bar progress-bar-danger")
+                                    .css("width", ((counts[2] / achieves.length) * 100) + "%")));
                         $body.empty().append($("<div>").addClass("row")
                             .append($("<div>").addClass("col-sm-6")
                                 .append($achievesYes))
@@ -157,10 +175,8 @@ $(document).ready(function() {
                 } else {
                     $body.text("Nothing to see here.");
                 }
-                var label = game.hours ? [game.hours < 0.5 ? "warning" : "success", game.hours + " hours"] : ["danger", "Unplayed"];
                 $page.append($("<div>").addClass("panel panel-dark")
-                    .append($("<div>").addClass("panel-heading").text(game.name + " ")
-                        .append($("<span>").addClass("label label-" + label[0]).text(label[1])))
+                    .append($head)
                     .append($body));
             });
         });
