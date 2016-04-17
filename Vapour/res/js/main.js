@@ -134,14 +134,19 @@ $(document).ready(function() {
                             $body.text("Nothing to see here.");
                             return;
                         }
-                        var $achievesList = $("<ul>").addClass("fa-ul");
+                        var $achievesYes = $("<ul>").addClass("fa-ul");
+                        var $achievesNo = $("<ul>").addClass("fa-ul");
                         $(achieves).each(function(i, achieve) {
                             var icon = achieve.date ? "check-square-o" : (achieve.progress ? "spinner" : "circle-o");
-                            $achievesList.append($("<li>")
+                            (achieve.date ? $achievesYes : $achievesNo).append($("<li>").toggleClass("text-muted", !achieve.name)
                                 .append($("<i>").addClass("fa fa-li fa-" + icon))
-                                .append(achieve.name || $("<em>").text("(secret)")));
+                                .append(achieve.name || "[a secret achievement]"));
                         });
-                        $body.empty().append($achievesList);
+                        $body.empty().append($("<div>").addClass("row")
+                            .append($("<div>").addClass("col-sm-6")
+                                .append($achievesYes))
+                            .append($("<div>").addClass("col-sm-6")
+                                .append($achievesNo)));
                     };
                     if (store[key]) {
                         callback(store[key]);
